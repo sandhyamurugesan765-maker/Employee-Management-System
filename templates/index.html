@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employee Management System</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 5% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 90%;
+            max-width: 600px;
+            border-radius: 10px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 10px;
+        }
+        .close {
+            color: #aaa;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close:hover {
+            color: black;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            opacity: 0.9;
+        }
+        .delete-btn {
+            background-color: #f44336;
+        }
+        .update-btn {
+            background-color: #2196F3;
+        }
+        .cancel-btn {
+            background-color: #999;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .navbar {
+            background-color: #333;
+            overflow: hidden;
+            padding: 15px;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modules-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            padding: 20px;
+        }
+        .module-card {
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            cursor: pointer;
+            transition: transform 0.3s;
+            text-align: center;
+        }
+        .module-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .auth-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .auth-box {
+            background-color: white;
+            padding: 40px;
+            border-radius: 10px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        .error-message {
+            background-color: #f44336;
+            color: white;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+        .success-message {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+        .logout-btn {
+            background-color: #f44336;
+        }
+        .link-btn {
+            background: none;
+            color: #667eea;
+            border: none;
+            cursor: pointer;
+            text-decoration: underline;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="app"></div>
+
+    <script>
+        const API_URL = 'http://127.0.0.1:5000/api';
+        let currentUser = null;
+
+        // Helper function for all API calls
+        async function apiCall(endpoint, options = {}) {
+            const defaultOptions = {
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            };
+            
+            const mergedOptions = { ...defaultOptions, ...options };
+            mergedOptions.headers = { ...defaultOptions.headers, ...options.headers };
+            
+            const response = await fetch(`${API_URL}${endpoint}`, mergedOptions);
+            return response;
+        }
+
+        // Helper function to escape HTML
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Render functions
+        function renderLogin() {
+            return `
+                <div class="auth-container">
+                    <div class="auth-box">
+                        <h2>Employee Management System</h2>
+                        <h3 style="text-align:center; margin-bottom:20px;">Login</h3>
+                        <div id="message"></div>
+                        <form id="loginForm">
+                            <div class="form-group">
+                                <label>Username</label>
+                                <input type="text" id="username" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Password</label>
+                                <input type="password" id="password" required>
+                            </div>
+                            <button type="submit">Login</button>
+                        </form>
+                        <button class="link-btn" onclick="showSignup()">Don't have an account? Sign Up</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderSignup() {
+            return `
+                <div class="auth-container">
+                    <div class="auth-box">
+                        <h2>Employee Management System</h2>
+                        <h3 style="text-align:center; margin-bottom:20px;">Sign Up</h3>
+                        <div id="message"></div>
+                        <form id="signupForm">
+                            <div class="form-group">
+                                <label>Username</label>
+                                <input type="text" id="username" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Email</label>
+                                <input type="email" id="email" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Password</label>
+                                <input type="password" id="password" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Role</label>
+                                <select id="role">
+                                    <option value="employee">Employee</option>
+                                    <option value="admin">Admin</option>
+                                </select>
+                            </div>
+                            <button type="submit">Sign Up</button>
+                        </form>
+                        <button class="link-btn" onclick="showLogin()">Already have an account? Login</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderDashboard() {
+            return `
+                <div class="dashboard">
+                    <div class="navbar">
+                        <h1>Employee Management System</h1>
+                        <div class="user-info">
+                            <span>Welcome, ${currentUser?.username} (${currentUser?.role})</span>
+                            <button class="logout-btn" onclick="logout()">Logout</button>
+                        </div>
+                    </div>
+                    <div class="modules-grid">
+                        <div class="module-card" onclick="openModule('addEmployee')">
+                            <h3>📝 Add Employee</h3>
+                            <p>Add new employee to the system</p>
+                        </div>
+                        <div class="module-card" onclick="openModule('viewEmployees')">
+                            <h3>👥 View Employees</h3>
+                            <p>View and update employee details</p>
+                        </div>
+                        <div class="module-card" onclick="openModule('attendance')">
+                            <h3>📅 Attendance</h3>
+                            <p>Mark daily attendance</p>
+                        </div>
+                        <div class="module-card" onclick="openModule('performance')">
+                            <h3>⭐ Performance & Salary</h3>
+                            <p>Manage reviews and view salary</p>
+                        </div>
+                        <div class="module-card" onclick="openModule('events')">
+                            <h3>🎉 Events Info</h3>
+                            <p>View company events</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Module functions
+        async function openModule(module) {
+            switch(module) {
+                case 'addEmployee':
+                    if (currentUser?.role !== 'admin') {
+                        alert('Only admin can add employees');
+                        return;
+                    }
+                    showAddEmployeeModal();
+                    break;
+                case 'viewEmployees':
+                    showViewEmployeesModal();
+                    break;
+                case 'attendance':
+                    showAttendanceModal();
+                    break;
+                case 'performance':
+                    showPerformanceModal();
+                    break;
+                case 'events':
+                    showEventsModal();
+                    break;
+            }
+        }
+
+        async function showAddEmployeeModal() {
+            const modalHtml = `
+                <div id="modal" class="modal" style="display:block">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h2>Add New Employee</h2>
+                            <span class="close" onclick="closeModal()">&times;</span>
+                        </div>
+                        <form id="addEmployeeForm">
+                            <div class="form-group">
+                                <label>Employee ID</label>
+                                <input type="text" id="emp_id" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Name</label>
+                                <input type="text" id="name" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Email</label>
+                                <input type="email" id="email" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Department</label>
+                                <input type="text" id="department" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Position</label>
+                                <input type="text" id="position" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Phone</label>
+                                <input type="text" id="phone" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Join Date</label>
+                                <input type="date" id="join_date" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Salary</label>
+                                <input type="number" id="salary" required>
+                            </div>
+                            <button type="submit">Add Employee</button>
+                        </form>
+                    </div>
+                </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+            
+            document.getElementById('addEmployeeForm').onsubmit = async (e) => {
+                e.preventDefault();
+                const data = {
+                    emp_id: document.getElementById('emp_id').value,
+                    name: document.getElementById('name').value,
+                    email: document.getElementById('email').value,
+                    department: document.getElementById('department').value,
+                    position: document.getElementById('position').value,
+                    phone: document.getElementById('phone').value,
+                    join_date: document.getElementById('join_date').value,
+                    salary: parseFloat(document.getElementById('salary').value)
+                };
+                
+                const response = await apiCall('/employees', {
+                    method: 'POST',
+                    body: JSON.stringify(data)
+                });
+                
+                if (response.ok) {
+                    alert('Employee added successfully!');
+                    closeModal();
+                } else {
+                    const error = await response.json();
+                    alert('Error: ' + error.error);
+                }
+            };
+        }
+
+        async function showViewEmployeesModal() {
+            try {
+                const response = await apiCall('/employees');
+                const employees = await response.json();
+                
+                let tableHtml = `
+                    <div style="overflow-x: auto;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Department</th>
+                                    <th>Position</th>
+                                    <th>Salary</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+                
+                employees.forEach(emp => {
+                    tableHtml += `
+                        <tr>
+                            <td>${escapeHtml(emp.emp_id)}</td>
+                            <td>${escapeHtml(emp.name)}</td>
+                            <td>${escapeHtml(emp.email)}</td>
+                            <td>${escapeHtml(emp.department)}</td>
+                            <td>${escapeHtml(emp.position)}</td>
+                            <td>$${emp.salary.toLocaleString()}</td>
+                            <td>
+                                ${currentUser?.role === 'admin' ? 
+                                    `<button class="update-btn" onclick="updateEmployee('${emp.emp_id}')">Update</button>
+                                     <button class="delete-btn" onclick="deleteEmployee('${emp.emp_id}')">Delete</button>` : 
+                                    '<span>View Only</span>'}
+                            </td>
+                        </tr>
+                    `;
+                });
+                
+                tableHtml += `
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                
+                const modalHtml = `
+                    <div id="modal" class="modal" style="display:block">
+                        <div class="modal-content" style="max-width:90%">
+                            <div class="modal-header">
+                                <h2>Employees List</h2>
+                                <span class="close" onclick="closeModal()">&times;</span>
+                            </div>
+                            ${tableHtml}
+                        </div>
+                    </div>
+                `;
+                document.body.insertAdjacentHTML('beforeend', modalHtml);
+            } catch (error) {
+                console.error('Error loading employees:', error);
+                alert('Error loading employees: ' + error.message);
+            }
+        }
+
+        // UPDATE EMPLOYEE FUNCTION - FIXED
+        window.updateEmployee = async function(emp_id) {
+            try {
+                // Fetch current employee data
+                const response = await apiCall('/employees');
+                const employees = await response.json();
+                const emp = employees.find(e => e.emp_id === emp_id);
+                
+                if (!emp) {
+                    alert('Employee not found!');
+                    return;
+                }
+                
+                // Create update form modal
+                const modalHtml = `
+                    <div id="updateModal" class="modal" style="display:block">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h2>Update Employee: ${escapeHtml(emp.emp_id)} - ${escapeHtml(emp.name)}</h2>
+                                <span class="close" onclick="closeUpdateModal()">&times;</span>
+                            </div>
+                            <form id="updateEmployeeForm">
+                                <div class="form-group">
+                                    <label>Name *</label>
+                                    <input type="text" id="name" value="${escapeHtml(emp.name)}" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Email *</label>
+                                    <input type="email" id="email" value="${escapeHtml(emp.email)}" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Department *</label>
+                                    <input type="text" id="department" value="${escapeHtml(emp.department)}" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Position *</label>
+                                    <input type="text" id="position" value="${escapeHtml(emp.position)}" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Phone *</label>
+                                    <input type="text" id="phone" value="${escapeHtml(emp.phone)}" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Join Date *</label>
+                                    <input type="date" id="join_date" value="${emp.join_date}" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Salary *</label>
+                                    <input type="number" id="salary" value="${emp.salary}" step="0.01" required>
+                                </div>
+                                <button type="submit">Update Employee</button>
+                                <button type="button" class="cancel-btn" onclick="closeUpdateModal()">Cancel</button>
+                            </form>
+                        </div>
+                    </div>
+                `;
+                
+                document.body.insertAdjacentHTML('beforeend', modalHtml);
+                
+                // Handle form submission
+                document.getElementById('updateEmployeeForm').onsubmit = async (e) => {
+                    e.preventDefault();
+                    
+                    const updatedData = {
+                        name: document.getElementById('name').value,
+                        email: document.getElementById('email').value,
+                        department: document.getElementById('department').value,
+                        position: document.getElementById('position').value,
+                        phone: document.getElementById('phone').value,
+                        join_date: document.getElementById('join_date').value,
+                        salary: parseFloat(document.getElementById('salary').value)
+                    };
+                    
+                    // Validate data
+                    if (!updatedData.name || !updatedData.email) {
+                        alert('Name and Email are required!');
+                        return;
+                    }
+                    
+                    // Show loading state
+                    const submitBtn = e.target.querySelector('button[type="submit"]');
+                    const originalText = submitBtn.textContent;
+                    submitBtn.textContent = 'Updating...';
+                    submitBtn.disabled = true;
+                    
+                    try {
+                        const updateResponse = await apiCall(`/employees/${emp_id}`, {
+                            method: 'PUT',
+                            body: JSON.stringify(updatedData)
+                        });
+                        
+                        const result = await updateResponse.json();
+                        
+                        if (updateResponse.ok && result.success) {
+                            alert('Employee updated successfully!');
+                            closeUpdateModal();
+                            // Refresh the employee list
+                            showViewEmployeesModal();
+                        } else {
+                            alert('Error: ' + (result.error || 'Failed to update employee'));
+                        }
+                    } catch (error) {
+                        console.error('Update error:', error);
+                        alert('Network error: ' + error.message);
+                    } finally {
+                        submitBtn.textContent = originalText;
+                        submitBtn.disabled = false;
+                    }
+                };
+            } catch (error) {
+                console.error('Error loading employee:', error);
+                alert('Error loading employee data: ' + error.message);
+            }
+        };
+
+        // DELETE EMPLOYEE FUNCTION - FIXED
+        window.deleteEmployee = async function(emp_id) {
+            if (confirm(`Are you sure you want to delete employee ${emp_id}?`)) {
+                try {
+                    const response = await apiCall(`/employees/${emp_id}`, {
+                        method: 'DELETE'
+                    });
+                    
+                    if (response.ok) {
+                        const result = await response.json();
+                        alert(result.message || 'Employee deleted successfully!');
+                        closeModal();
+                        // Refresh the employee list
+                        showViewEmployeesModal();
+                    } else {
+                        const error = await response.json();
+                        alert('Error: ' + (error.error || 'Failed to delete employee'));
+                    }
+                } catch (error) {
+                    console.error('Delete error:', error);
+                    alert('Network error: ' + error.message);
+                }
+            }
+        };
+
+        function closeUpdateModal() {
+            const modal = document.getElementById('updateModal');
+            if (modal) modal.remove();
+        }
+
+        async function showAttendanceModal() {
+            const emp_id = prompt('Enter your Employee ID:');
+            if (!emp_id) return;
+            
+            const action = confirm('Mark Attendance?\nOK = Check In/Out\nCancel = View History');
+            
+            if (action) {
+                const response = await apiCall('/attendance', {
+                    method: 'POST',
+                    body: JSON.stringify({emp_id})
+                });
+                
+                if (response.ok) {
+                    alert('Attendance marked successfully!');
+                } else {
+                    alert('Error marking attendance');
+                }
+            } else {
+                const response = await apiCall(`/attendance/${emp_id}`);
+                const attendance = await response.json();
+                
+                let historyHtml = '<h3>Last 30 Days Attendance</h3><table><tr><th>Date</th><th>Check In</th><th>Check Out</th><th>Status</th></tr>';
+                attendance.forEach(att => {
+                    historyHtml += `
+                        <tr>
+                            <td>${att.date}</td>
+                            <td>${att.check_in || '-'}</td>
+                            <td>${att.check_out || '-'}</td>
+                            <td>${att.status}</td>
+                        </tr>
+                    `;
+                });
+                historyHtml += '</table>';
+                
+                const modalHtml = `
+                    <div id="modal" class="modal" style="display:block">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h2>Attendance History</h2>
+                                <span class="close" onclick="closeModal()">&times;</span>
+                            </div>
+                            ${historyHtml}
+                        </div>
+                    </div>
+                `;
+                document.body.insertAdjacentHTML('beforeend', modalHtml);
+            }
+        }
+
+        async function showPerformanceModal() {
+            const emp_id = prompt('Enter Employee ID:');
+            if (!emp_id) return;
+            
+            const action = confirm('View Performance & Salary?\nOK = View Details\nCancel = Add Review (Admin only)');
+            
+            if (action) {
+                // View performance and salary
+                const [perfResponse, salaryResponse] = await Promise.all([
+                    apiCall(`/performance/${emp_id}`),
+                    apiCall(`/salary/${emp_id}`)
+                ]);
+                
+                const performance = await perfResponse.json();
+                const salary = await salaryResponse.json();
+                
+                let contentHtml = `
+                    <h3>Salary Information</h3>
+                    <p><strong>Employee:</strong> ${salary.name}</p>
+                    <p><strong>Monthly Salary:</strong> $${salary.salary}</p>
+                    <h3>Performance Reviews</h3>
+                `;
+                
+                if (performance.length > 0) {
+                    contentHtml += '<table><tr><th>Date</th><th>Rating</th><th>Comments</th><th>Goals</th></tr>';
+                    performance.forEach(perf => {
+                        contentHtml += `
+                            <tr>
+                                <td>${perf.review_date}</td>
+                                <td>${'⭐'.repeat(perf.rating)}</td>
+                                <td>${perf.comments}</td>
+                                <td>${perf.goals}</td>
+                            </tr>
+                        `;
+                    });
+                    contentHtml += '</table>';
+                } else {
+                    contentHtml += '<p>No performance reviews yet.</p>';
+                }
+                
+                const modalHtml = `
+                    <div id="modal" class="modal" style="display:block">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h2>Performance & Salary</h2>
+                                <span class="close" onclick="closeModal()">&times;</span>
+                            </div>
+                            ${contentHtml}
+                        </div>
+                    </div>
+                `;
+                document.body.insertAdjacentHTML('beforeend', modalHtml);
+            } else if (currentUser?.role === 'admin') {
+                // Add performance review
+                const review_date = prompt('Review Date (YYYY-MM-DD):');
+                const rating = prompt('Rating (1-5):');
+                const comments = prompt('Comments:');
+                const goals = prompt('Goals for next period:');
+                
+                const response = await apiCall('/performance', {
+                    method: 'POST',
+                    body: JSON.stringify({emp_id, review_date, rating: parseInt(rating), comments, goals})
+                });
+                
+                if (response.ok) {
+                    alert('Performance review added!');
+                } else {
+                    alert('Error adding review');
+                }
+            }
+        }
+
+        async function showEventsModal() {
+            const response = await apiCall('/events');
+            const events = await response.json();
+            
+            let eventsHtml = '<h3>Upcoming Events</h3>';
+            if (events.length > 0) {
+                eventsHtml += '<table><tr><th>Title</th><th>Date</th><th>Location</th><th>Description</th></tr>';
+                events.forEach(event => {
+                    eventsHtml += `
+                        <tr>
+                            <td>${event.title}</td>
+                            <td>${event.event_date}</td>
+                            <td>${event.location || '-'}</td>
+                            <td>${event.description || '-'}</td>
+                        </tr>
+                    `;
+                });
+                eventsHtml += '</table>';
+            } else {
+                eventsHtml += '<p>No upcoming events.</p>';
+            }
+            
+            if (currentUser?.role === 'admin') {
+                eventsHtml += `
+                    <hr>
+                    <h4>Add New Event</h4>
+                    <form id="addEventForm">
+                        <div class="form-group">
+                            <label>Title</label>
+                            <input type="text" id="event_title" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Description</label>
+                            <textarea id="event_description"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Date</label>
+                            <input type="date" id="event_date" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Location</label>
+                            <input type="text" id="event_location">
+                        </div>
+                        <button type="submit">Add Event</button>
+                    </form>
+                `;
+            }
+            
+            const modalHtml = `
+                <div id="modal" class="modal" style="display:block">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h2>Events Information</h2>
+                            <span class="close" onclick="closeModal()">&times;</span>
+                        </div>
+                        ${eventsHtml}
+                    </div>
+                </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+            
+            if (currentUser?.role === 'admin') {
+                document.getElementById('addEventForm').onsubmit = async (e) => {
+                    e.preventDefault();
+                    const data = {
+                        title: document.getElementById('event_title').value,
+                        description: document.getElementById('event_description').value,
+                        event_date: document.getElementById('event_date').value,
+                        location: document.getElementById('event_location').value
+                    };
+                    
+                    const response = await apiCall('/events', {
+                        method: 'POST',
+                        body: JSON.stringify(data)
+                    });
+                    
+                    if (response.ok) {
+                        alert('Event added!');
+                        closeModal();
+                        showEventsModal();
+                    } else {
+                        alert('Error adding event');
+                    }
+                };
+            }
+        }
+
+        // Auth functions
+        window.login = async function(username, password) {
+            const response = await apiCall('/login', {
+                method: 'POST',
+                body: JSON.stringify({username, password})
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                currentUser = data;
+                renderApp();
+            } else {
+                document.getElementById('message').innerHTML = '<div class="error-message">Invalid credentials</div>';
+            }
+        };
+
+        window.signup = async function(username, email, password, role) {
+            const response = await apiCall('/signup', {
+                method: 'POST',
+                body: JSON.stringify({username, email, password, role})
+            });
+            
+            if (response.ok) {
+                alert('Signup successful! Please login.');
+                showLogin();
+            } else {
+                const error = await response.json();
+                document.getElementById('message').innerHTML = `<div class="error-message">${error.error}</div>`;
+            }
+        };
+
+        window.logout = async function() {
+            await apiCall('/logout', {method: 'POST'});
+            currentUser = null;
+            renderApp();
+        };
+
+        function closeModal() {
+            const modal = document.getElementById('modal');
+            if (modal) modal.remove();
+        }
+
+        function showLogin() {
+            renderApp();
+        }
+
+        function showSignup() {
+            const app = document.getElementById('app');
+            app.innerHTML = renderSignup();
+            
+            document.getElementById('signupForm').onsubmit = (e) => {
+                e.preventDefault();
+                const username = document.getElementById('username').value;
+                const email = document.getElementById('email').value;
+                const password = document.getElementById('password').value;
+                const role = document.getElementById('role').value;
+                signup(username, email, password, role);
+            };
+        }
+
+        function renderApp() {
+            const app = document.getElementById('app');
+            if (!currentUser) {
+                app.innerHTML = renderLogin();
+                document.getElementById('loginForm').onsubmit = (e) => {
+                    e.preventDefault();
+                    const username = document.getElementById('username').value;
+                    const password = document.getElementById('password').value;
+                    login(username, password);
+                };
+            } else {
+                app.innerHTML = renderDashboard();
+            }
+        }
+
+        // Initialize app
+        renderApp();
+    </script>
+</body>
+</html>
